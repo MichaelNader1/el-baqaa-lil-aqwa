@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الهوست — البقاء للأقوى</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold: #F5C518; --gold-dark: #C9A000;
+  --bg: #0a0a0f; --bg2: #12121e; --card: #1a1a2e;
+  --border: rgba(245,197,24,0.2); --text: #fff;
+  --muted: rgba(255,255,255,0.5); --red: #e74c3c; --green: #2ecc71;
+}
+body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; direction:rtl; }
+
+/* ===== LAYOUT ===== */
+.app { display:flex; flex-direction:column; min-height:100vh; }
+header {
+  background:var(--bg2); border-bottom:1px solid var(--border);
+  padding:1rem 2rem; display:flex; align-items:center; gap:1rem;
+}
+header h1 { font-size:1.3rem; font-weight:900; }
+.gold { color:var(--gold); }
+.back-btn {
+  background:transparent; border:1px solid var(--border); color:var(--muted);
+  padding:0.4rem 1rem; border-radius:8px; cursor:pointer; font-family:'Cairo',sans-serif;
+  font-size:0.85rem; transition:all 0.2s;
+}
+.back-btn:hover { border-color:var(--gold); color:var(--gold); }
+.spacer { flex:1; }
+
+main { flex:1; padding:2rem; max-width:1000px; margin:0 auto; width:100%; }
+
+/* ===== SETUP SCREEN ===== */
+.setup-screen { max-width:620px; margin:0 auto; }
+.section-title { font-size:1.1rem; font-weight:700; color:var(--gold); margin-bottom:1rem; }
+.card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:16px; padding:1.5rem; margin-bottom:1.2rem;
+}
+label { display:block; font-size:0.85rem; color:var(--muted); margin-bottom:0.4rem; }
+input[type=text], input[type=number], textarea, select {
+  width:100%; background:var(--bg2); border:1px solid var(--border);
+  color:var(--text); padding:0.7rem 1rem; border-radius:10px;
+  font-family:'Cairo',sans-serif; font-size:0.95rem; outline:none;
+  transition:border-color 0.2s;
+}
+input:focus, textarea:focus, select:focus { border-color:var(--gold); }
+textarea { resize:vertical; min-height:80px; }
+.row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+.toggle-group { display:flex; gap:0.5rem; }
+.toggle-btn {
+  flex:1; padding:0.6rem; border-radius:10px; border:1px solid var(--border);
+  background:transparent; color:var(--muted); cursor:pointer; font-family:'Cairo',sans-serif;
+  font-size:0.85rem; transition:all 0.2s;
+}
+.toggle-btn.active { background:rgba(245,197,24,0.15); border-color:var(--gold); color:var(--gold); font-weight:700; }
+
+/* custom questions */
+.q-builder { display:flex; flex-direction:column; gap:1rem; }
+.q-item {
+  background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+  padding:1rem; position:relative;
+}
+.q-item-header { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.8rem; }
+.q-num {
+  width:28px; height:28px; border-radius:50%; background:var(--gold);
+  color:#000; font-weight:900; font-size:0.8rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.q-item input { margin-bottom:0.5rem; }
+.answers-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:0.5rem; }
+.answer-wrap { display:flex; align-items:center; gap:0.4rem; }
+.answer-wrap input[type=text] { flex:1; padding:0.5rem 0.7rem; font-size:0.85rem; }
+.correct-btn {
+  width:28px; height:28px; border-radius:6px; border:1px solid var(--border);
+  background:transparent; cursor:pointer; font-size:0.8rem; flex-shrink:0;
+  transition:all 0.2s; display:flex; align-items:center; justify-content:center;
+}
+.correct-btn.active { background:rgba(46,204,113,0.2); border-color:var(--green); }
+.del-q-btn {
+  position:absolute; top:0.7rem; left:0.7rem;
+  background:rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3);
+  color:var(--red); width:26px; height:26px; border-radius:6px;
+  cursor:pointer; font-size:0.9rem; display:flex; align-items:center; justify-content:center;
+}
+.add-q-btn {
+  width:100%; padding:0.7rem; border:1px dashed var(--border); border-radius:10px;
+  background:transparent; color:var(--muted); cursor:pointer; font-family:'Cairo',sans-serif;
+  font-size:0.9rem; transition:all 0.2s;
+}
+.add-q-btn:hover { border-color:var(--gold); color:var(--gold); }
+
+.create-btn {
+  width:100%; padding:1rem; background:var(--gold); color:#000;
+  border:none; border-radius:12px; font-family:'Cairo',sans-serif;
+  font-size:1.1rem; font-weight:900; cursor:pointer; transition:all 0.2s;
+  margin-top:0.5rem;
+}
+.create-btn:hover { background:var(--gold-dark); transform:translateY(-1px); }
+.create-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+/* ===== LOBBY SCREEN ===== */
+.lobby-screen { display:none; }
+.lobby-top { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+.code-card {
+  background:var(--card); border:1px solid var(--border); border-radius:16px;
+  padding:1.5rem; text-align:center;
+}
+.room-code {
+  font-size:4rem; font-weight:900; color:var(--gold); letter-spacing:0.2em;
+  line-height:1; margin:0.5rem 0;
+}
+.code-label { color:var(--muted); font-size:0.85rem; }
+.player-count {
+  font-size:1.1rem; font-weight:700; margin-top:0.8rem;
+  color:var(--green);
+}
+
+.players-card {
+  background:var(--card); border:1px solid var(--border); border-radius:16px;
+  padding:1.5rem; max-height:300px; overflow-y:auto;
+}
+.players-list { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.8rem; }
+.player-chip {
+  background:var(--bg2); border:1px solid var(--border); border-radius:20px;
+  padding:0.3rem 0.9rem; font-size:0.85rem;
+  animation:fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+
+.start-btn {
+  width:100%; padding:1.1rem; background:var(--green); color:#000;
+  border:none; border-radius:12px; font-family:'Cairo',sans-serif;
+  font-size:1.2rem; font-weight:900; cursor:pointer; transition:all 0.2s;
+  margin-bottom:1.5rem;
+}
+.start-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.start-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+/* ===== GAME CONTROL SCREEN ===== */
+.game-screen { display:none; }
+.game-top { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+.stat-box {
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:1rem; text-align:center;
+}
+.stat-val { font-size:2.2rem; font-weight:900; color:var(--gold); }
+.stat-lbl { font-size:0.8rem; color:var(--muted); margin-top:0.2rem; }
+
+.q-display {
+  background:var(--card); border:1px solid var(--border); border-radius:16px;
+  padding:1.5rem; margin-bottom:1rem; text-align:center;
+}
+.q-display .q-num-badge {
+  background:var(--gold); color:#000; font-size:0.8rem; font-weight:700;
+  padding:0.2rem 0.8rem; border-radius:20px; display:inline-block; margin-bottom:0.7rem;
+}
+.q-display .q-text { font-size:1.2rem; font-weight:700; line-height:1.5; }
+.q-display .q-answers { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-top:1rem; }
+.q-ans-item {
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:0.6rem 0.8rem; font-size:0.9rem; text-align:right;
+}
+.q-ans-item.correct-ans { border-color:var(--green); background:rgba(46,204,113,0.1); color:var(--green); font-weight:700; }
+
+.timer-bar { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:1rem; }
+.timer-track { background:var(--bg2); border-radius:6px; height:10px; overflow:hidden; }
+.timer-fill { height:100%; background:var(--gold); border-radius:6px; transition:width 1s linear, background 0.5s; }
+.timer-fill.danger { background:var(--red); }
+.timer-text { text-align:center; font-size:1.5rem; font-weight:900; color:var(--gold); margin-top:0.5rem; }
+
+.controls { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin-bottom:1rem; }
+.ctrl-btn {
+  padding:0.9rem; border-radius:12px; border:none; cursor:pointer;
+  font-family:'Cairo',sans-serif; font-size:0.95rem; font-weight:700; transition:all 0.2s;
+}
+.ctrl-btn:hover { transform:translateY(-2px); }
+.ctrl-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+.ctrl-btn.reveal { background:var(--gold); color:#000; grid-column:1/-1; }
+.ctrl-btn.next { background:var(--green); color:#000; }
+.ctrl-btn.stop { background:var(--red); color:#fff; }
+
+.lifeline-row {
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:1rem; margin-bottom:1rem;
+}
+.lifeline-row h3 { font-size:0.9rem; color:var(--muted); margin-bottom:0.7rem; }
+.lifeline-btns { display:flex; gap:0.7rem; }
+.ll-btn {
+  flex:1; padding:0.7rem; border-radius:10px; border:1px solid var(--border);
+  background:var(--bg2); color:var(--text); cursor:pointer;
+  font-family:'Cairo',sans-serif; font-size:0.85rem; font-weight:700; transition:all 0.2s;
+}
+.ll-btn:hover:not(:disabled) { border-color:var(--gold); color:var(--gold); background:rgba(245,197,24,0.08); }
+.ll-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.ll-locked { display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; color:var(--red); }
+
+.answers-stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; }
+.answers-stat h3 { font-size:0.9rem; color:var(--muted); margin-bottom:0.7rem; }
+.ans-bars { display:flex; flex-direction:column; gap:0.4rem; }
+.ans-bar-row { display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; }
+.ans-bar-label { width:28px; text-align:center; font-weight:700; }
+.ans-bar-track { flex:1; height:8px; background:var(--bg2); border-radius:4px; overflow:hidden; }
+.ans-bar-fill { height:100%; background:var(--gold); border-radius:4px; transition:width 0.5s; }
+.ans-bar-count { width:30px; text-align:left; color:var(--muted); font-size:0.8rem; }
+
+.msg { padding:0.7rem 1rem; border-radius:8px; font-size:0.9rem; font-weight:600; display:none; margin-top:0.5rem; }
+.msg.error { background:rgba(231,76,60,0.15); border:1px solid rgba(231,76,60,0.4); color:var(--red); display:block; }
+.msg.success { background:rgba(46,204,113,0.15); border:1px solid rgba(46,204,113,0.4); color:var(--green); display:block; }
+
+/* progress bars */
+.answer-progress { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:0.8rem 1rem; margin-bottom:1rem; }
+.answer-progress-top { display:flex; justify-content:space-between; font-size:0.85rem; color:var(--muted); margin-bottom:0.5rem; }
+.progress-track { background:var(--bg2); border-radius:6px; height:12px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--gold),var(--green)); border-radius:6px; transition:width 0.5s ease; }
+.lobby-progress { margin-top:0.8rem; }
+.lobby-progress-track { background:var(--bg2); border-radius:6px; height:6px; overflow:hidden; }
+.lobby-progress-fill { height:100%; background:var(--gold); border-radius:6px; transition:width 0.4s ease; }
+
+/* elim stats */
+.elim-stats { background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:12px; padding:0.8rem 1rem; margin-bottom:1rem; font-size:0.9rem; }
+
+/* glow animation */
+@keyframes glowPulse {
+  0%,100% { box-shadow:0 0 10px rgba(245,197,24,0.4); background:var(--gold); }
+  50% { box-shadow:0 0 30px rgba(245,197,24,0.9), 0 0 60px rgba(245,197,24,0.4); background:#ffe566; }
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <button class="back-btn" onclick="location.href='index.html'">← رجوع</button>
+    <h1>🎮 لوحة <span class="gold">الهوست</span></h1>
+    <div class="spacer"></div>
+    <span id="statusBadge" style="font-size:0.8rem;color:var(--muted)"></span>
+  </header>
+
+  <main>
+    <!-- SETUP -->
+    <div class="setup-screen" id="setupScreen">
+      <div class="card">
+        <div class="section-title">⚙️ إعدادات الغرفة</div>
+        <label>اسمك (اسم الهوست)</label>
+        <input type="text" id="hostName" placeholder="مثال: أحمد المنظم" maxlength="30">
+        <br><br>
+        <div class="row">
+          <div>
+            <label>وقت كل سؤال (ثانية)</label>
+            <input type="number" id="qTime" value="15" min="5" max="15">
+          </div>
+          <div>
+            <label>نوع الأسئلة</label>
+            <div class="toggle-group" style="margin-top:0.4rem">
+              <button class="toggle-btn active" id="btnDefault" onclick="setQType('default')">افتراضية</button>
+              <button class="toggle-btn" id="btnCustom" onclick="setQType('custom')">مخصصة</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom questions builder -->
+      <div class="card" id="customSection" style="display:none">
+        <div class="section-title">📝 أضف أسئلتك</div>
+        <div class="q-builder" id="qBuilder"></div>
+        <button class="add-q-btn" onclick="addQuestion()">+ أضف سؤال</button>
+      </div>
+
+      <div id="setupMsg" class="msg"></div>
+      <button class="create-btn" onclick="createRoom()">🚀 إنشاء الغرفة</button>
+    </div>
+
+    <!-- LOBBY -->
+    <div class="lobby-screen" id="lobbyScreen">
+      <div class="lobby-top">
+        <div class="code-card">
+          <div class="code-label">كود الغرفة</div>
+          <div class="room-code" id="displayCode">----</div>
+          <div class="player-count" id="playerCount">0 لاعب منضم</div>
+        </div>
+        <div class="code-card">
+          <div class="code-label">QR Code للانضمام</div>
+          <div id="qrcode" style="margin:0.5rem auto;width:fit-content"></div>
+        </div>
+      </div>
+
+      <div class="players-card">
+        <div class="section-title">👥 اللاعبون المنضمون</div>
+        <div class="lobby-progress">
+          <div class="lobby-progress-track"><div class="lobby-progress-fill" id="lobbyProgressFill" style="width:0%"></div></div>
+        </div>
+        <div class="players-list" id="playersList"></div>
+      </div>
+
+      <br>
+      <button class="start-btn" id="startBtn" onclick="startGame()" disabled>
+        ابدأ اللعبة (يجب أن ينضم لاعب على الأقل)
+      </button>
+    </div>
+
+    <!-- GAME -->
+    <div class="game-screen" id="gameScreen">
+      <div class="game-top">
+        <div class="stat-box">
+          <div class="stat-val" id="statAlive">-</div>
+          <div class="stat-lbl">لاعب لسه معاهم</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val gold" id="statQ">-</div>
+          <div class="stat-lbl">رقم السؤال الحالي</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statAnswered" style="color:var(--green)">-</div>
+          <div class="stat-lbl">أجابوا</div>
+        </div>
+      </div>
+
+      <div class="q-display" id="qDisplay"></div>
+
+      <div class="timer-bar" id="timerBar" style="display:none">
+        <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+        <div class="timer-text" id="timerText">15</div>
+      </div>
+
+      <!-- progress bar الإجابات -->
+      <div class="answer-progress" id="answerProgressBox" style="display:none">
+        <div class="answer-progress-top">
+          <span>تقدم الإجابات</span>
+          <span id="answerProgressText">0% أجابوا</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="answerProgressFill" style="width:0%"></div></div>
+      </div>
+
+      <!-- إحصائيات الخسارة -->
+      <div class="elim-stats" id="elimStatsBox" style="display:none">
+        <div id="elimStatsText"></div>
+      </div>
+
+      <div class="lifeline-row">
+        <h3>وسائل المساعدة</h3>
+        <div id="lifelineArea">
+          <div class="ll-locked">🔒 متاحة فقط عندما يكون اللاعبون أكثر من 10</div>
+        </div>
+      </div>
+
+      <div class="answers-stat" id="answersStatBox" style="display:none">
+        <h3>إحصائيات الإجابات</h3>
+        <div class="ans-bars" id="ansBars"></div>
+      </div>
+
+      <br>
+      <div class="controls" id="gameControls"></div>
+      <div id="gameMsg" class="msg"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ===== GLOBALS =====
+let sb, roomCode, roomId, currentQ = 0, gameQuestions = [];
+let timerInterval = null, timerSec = 15;
+let alivePlayers = [], allPlayers = [];
+let playersChannel, eventsChannel;
+let qType = 'default';
+let isRevealed = false;
+let customQs = [];
+
+// ===== INIT SUPABASE =====
+function initSB() {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+// ===== Q TYPE TOGGLE =====
+function setQType(t) {
+  qType = t;
+  document.getElementById('btnDefault').classList.toggle('active', t === 'default');
+  document.getElementById('btnCustom').classList.toggle('active', t === 'custom');
+  document.getElementById('customSection').style.display = t === 'custom' ? 'block' : 'none';
+  if (t === 'custom' && customQs.length === 0) addQuestion();
+}
+
+// ===== CUSTOM Q BUILDER =====
+function addQuestion() {
+  const idx = customQs.length;
+  customQs.push({ q: '', a: ['','','',''], correct: 0 });
+  renderQuestions();
+}
+
+function removeQuestion(i) {
+  customQs.splice(i, 1);
+  renderQuestions();
+}
+
+function renderQuestions() {
+  const el = document.getElementById('qBuilder');
+  el.innerHTML = '';
+  customQs.forEach((q, i) => {
+    const labels = ['أ','ب','ج','د'];
+    const answersHtml = q.a.map((ans, j) => `
+      <div class="answer-wrap">
+        <input type="text" placeholder="إجابة ${labels[j]}" value="${ans}"
+          oninput="customQs[${i}].a[${j}]=this.value">
+        <button class="correct-btn ${q.correct===j?'active':''}" onclick="setCorrect(${i},${j})" title="الإجابة الصحيحة">✓</button>
+      </div>
+    `).join('');
+    el.innerHTML += `
+      <div class="q-item">
+        ${customQs.length > 1 ? `<button class="del-q-btn" onclick="removeQuestion(${i})">✕</button>` : ''}
+        <div class="q-item-header">
+          <div class="q-num">${i+1}</div>
+          <span style="font-size:0.85rem;color:var(--muted)">السؤال ${i+1}</span>
+        </div>
+        <input type="text" placeholder="نص السؤال..." value="${q.q}"
+          oninput="customQs[${i}].q=this.value" style="margin-bottom:0.6rem">
+        <div class="answers-grid">${answersHtml}</div>
+      </div>
+    `;
+  });
+}
+
+function setCorrect(qi, ai) {
+  customQs[qi].correct = ai;
+  renderQuestions();
+}
+
+// ===== CREATE ROOM =====
+function generateCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+async function createRoom() {
+  const hostName = document.getElementById('hostName').value.trim() || 'الهوست';
+  const qTime = parseInt(document.getElementById('qTime').value) || 15;
+  const adjustedTime = Math.min(15, Math.max(5, qTime));
+
+  let questions;
+  if (qType === 'default') {
+    questions = DEFAULT_QUESTIONS;
+  } else {
+    // validate
+    for (let i = 0; i < customQs.length; i++) {
+      const q = customQs[i];
+      if (!q.q.trim()) return showMsg('setupMsg', `السؤال ${i+1} فارغ!`, 'error');
+      for (let j = 0; j < 4; j++) {
+        if (!q.a[j].trim()) return showMsg('setupMsg', `إجابة فارغة في السؤال ${i+1}`, 'error');
+      }
+    }
+    questions = customQs;
+  }
+
+  const btn = document.querySelector('.create-btn');
+  btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+
+  try {
+    const code = generateCode();
+    const { data, error } = await sb.from('rooms').insert({
+      code, host_name: hostName,
+      status: 'lobby', current_question: 0,
+      question_time: adjustedTime,
+      questions: questions,
+      lifelines_active: true
+    }).select().single();
+
+    if (error) throw error;
+    roomCode = code; roomId = data.id;
+    gameQuestions = questions; timerSec = adjustedTime;
+    showLobby();
+  } catch(e) {
+    showMsg('setupMsg', 'خطأ: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = '🚀 إنشاء الغرفة';
+  }
+}
+
+// ===== LOBBY =====
+let lobbyPollingInterval = null;
+
+function showLobby() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('lobbyScreen').style.display = 'block';
+  document.getElementById('displayCode').textContent = roomCode;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(location.origin+'/player.html?code='+roomCode)}`;
+  document.getElementById('qrcode').innerHTML = `<img src="${qrUrl}" style="border-radius:8px">`;
+  loadPlayers();
+  lobbyPollingInterval = setInterval(loadPlayers, 2000);
+}
+
+async function loadPlayers() {
+  const { data } = await sb.from('players').select('*').eq('room_code', roomCode).order('joined_at');
+  if (!data) return;
+  allPlayers = data; alivePlayers = data.filter(p => p.is_alive);
+  const colors = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#e91e63','#00bcd4','#ff5722'];
+  document.getElementById('playersList').innerHTML = data.map((p, i) => `
+    <div class="player-chip" style="border-color:${colors[i%colors.length]}50;background:${colors[i%colors.length]}18">
+      <span style="color:${colors[i%colors.length]};font-weight:900;margin-left:4px">${i+1}</span>${p.name}
+    </div>`).join('');
+  const count = data.length;
+  document.getElementById('playerCount').textContent = `${count} لاعب منضم`;
+  document.getElementById('lobbyProgressFill').style.width = Math.min(count, 20) / 20 * 100 + '%';
+  const startBtn = document.getElementById('startBtn');
+  startBtn.disabled = count === 0;
+  startBtn.textContent = count > 0 ? `▶ ابدأ اللعبة — ${count} لاعب جاهز 🎮` : 'ابدأ اللعبة (انتظر انضمام اللاعبين)';
+}
+
+// ===== START GAME =====
+async function startGame() {
+  clearInterval(lobbyPollingInterval);
+  const { data } = await sb.from('players').select('*').eq('room_code', roomCode);
+  allPlayers = data; alivePlayers = data.filter(p => p.is_alive);
+  await sb.from('rooms').update({ status: 'question', current_question: 0 }).eq('code', roomCode);
+  await publishEvent('game_started', { totalPlayers: data.length });
+  document.getElementById('lobbyScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'block';
+  subscribeToEvents();
+  showQuestion(0);
+}
+
+// ===== GAME =====
+let statsPollingInterval = null;
+
+function startStatsPolling() {
+  clearInterval(statsPollingInterval);
+  statsPollingInterval = setInterval(() => refreshStats(), 1500);
+}
+
+function stopStatsPolling() {
+  clearInterval(statsPollingInterval);
+}
+
+function subscribeToEvents() {
+  // realtime لو شغّال — fallback للـ polling
+  eventsChannel = sb.channel('answers-' + roomCode)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'players', filter: `room_code=eq.${roomCode}` },
+      () => refreshStats())
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'players', filter: `room_code=eq.${roomCode}` },
+      () => refreshStats())
+    .subscribe();
+}
+
+async function refreshStats() {
+  const { data } = await sb.from('players').select('*').eq('room_code', roomCode);
+  if (!data) return;
+  allPlayers = data; alivePlayers = data.filter(p => p.is_alive);
+  document.getElementById('statAlive').textContent = alivePlayers.length;
+
+  const aliveData = data.filter(p => p.is_alive);
+  const answered = aliveData.filter(p => p.current_answer !== null);
+  const answeredCount = answered.length;
+  const aliveCount = aliveData.length;
+
+  document.getElementById('statAnswered').textContent = `${answeredCount}/${aliveCount}`;
+
+  // progress bar
+  const pct = aliveCount > 0 ? Math.round(answeredCount / aliveCount * 100) : 0;
+  document.getElementById('answerProgressFill').style.width = pct + '%';
+  document.getElementById('answerProgressText').textContent = `${pct}% أجابوا`;
+
+  // زرار كشف يضيء لما الكل يجاوب
+  if (answeredCount === aliveCount && aliveCount > 0 && !isRevealed) {
+    const revealBtn = document.querySelector('.ctrl-btn.reveal');
+    if (revealBtn) {
+      revealBtn.style.animation = 'glowPulse 0.8s ease-in-out infinite';
+      revealBtn.textContent = '✨ الكل أجاب! اكشف الإجابة';
+    }
+  }
+
+  updateAnswerBars(aliveData);
+  updateLifelines();
+}
+
+function updateAnswerBars(players) {
+  const q = gameQuestions[currentQ];
+  const counts = [0,0,0,0];
+  players.forEach(p => {
+    if (p.current_answer !== null) {
+      const i = parseInt(p.current_answer);
+      if (i >= 0 && i < 4) counts[i]++;
+    }
+  });
+  const total = counts.reduce((a,b)=>a+b,0);
+  const labels = ['أ','ب','ج','د'];
+  const bars = document.getElementById('ansBars');
+  bars.innerHTML = counts.map((c,i) => {
+    const pct = total > 0 ? Math.round(c/total*100) : 0;
+    return `
+      <div class="ans-bar-row">
+        <div class="ans-bar-label">${labels[i]}</div>
+        <div class="ans-bar-track"><div class="ans-bar-fill" style="width:${pct}%"></div></div>
+        <div class="ans-bar-count">${c}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function showQuestion(idx) {
+  currentQ = idx;
+  isRevealed = false;
+  const q = gameQuestions[idx];
+  const labels = ['أ','ب','ج','د'];
+
+  // clear previous answers
+  await sb.from('players').update({ current_answer: null, answered_at: null })
+    .eq('room_code', roomCode).eq('is_alive', true);
+
+  await sb.from('rooms').update({ current_question: idx, status: 'question' }).eq('code', roomCode);
+  await publishEvent('question_started', { questionIndex: idx, question: q, timeLimit: timerSec });
+
+  document.getElementById('statQ').textContent = `${idx+1}/${gameQuestions.length}`;
+  document.getElementById('statAlive').textContent = alivePlayers.length;
+  document.getElementById('statAnswered').textContent = '0';
+
+  const qDisplay = document.getElementById('qDisplay');
+  qDisplay.innerHTML = `
+    <div class="q-num-badge">سؤال ${idx+1} من ${gameQuestions.length}</div>
+    <div class="q-text">${q.q}</div>
+    <div class="q-answers">
+      ${q.a.map((a,i) => `<div class="q-ans-item"><strong>${labels[i]}.</strong> ${a}</div>`).join('')}
+    </div>
+  `;
+
+  document.getElementById('answersStatBox').style.display = 'block';
+  document.getElementById('answerProgressBox').style.display = 'block';
+  document.getElementById('answerProgressFill').style.width = '0%';
+  document.getElementById('answerProgressText').textContent = '0% أجابوا';
+  document.getElementById('elimStatsBox').style.display = 'none';
+  document.getElementById('ansBars').innerHTML = ['أ','ب','ج','د'].map(l => `
+    <div class="ans-bar-row">
+      <div class="ans-bar-label">${l}</div>
+      <div class="ans-bar-track"><div class="ans-bar-fill" style="width:0%"></div></div>
+      <div class="ans-bar-count">0</div>
+    </div>
+  `).join('');
+
+  updateLifelines();
+  renderGameControls('running');
+  startTimer();
+  startStatsPolling();
+}
+
+function startTimer() {
+  let sec = timerSec;
+  const fill = document.getElementById('timerFill');
+  const text = document.getElementById('timerText');
+  document.getElementById('timerBar').style.display = 'block';
+  fill.style.width = '100%';
+  fill.classList.remove('danger');
+  text.textContent = sec;
+
+  clearInterval(timerInterval);
+  timerInterval = setInterval(async () => {
+    sec--;
+    const pct = (sec / timerSec) * 100;
+    fill.style.width = pct + '%';
+    text.textContent = sec;
+    if (sec <= 5) fill.classList.add('danger');
+    if (sec <= 0) {
+      clearInterval(timerInterval);
+      await timeUp();
+    }
+  }, 1000);
+}
+
+async function timeUp() {
+  await revealAnswer();
+}
+
+async function revealAnswer() {
+  if (isRevealed) return;
+  isRevealed = true;
+  clearInterval(timerInterval);
+  stopStatsPolling();
+
+  const q = gameQuestions[currentQ];
+  const labels = ['أ','ب','ج','د'];
+
+  // mark unanswered alive players as eliminated
+  const { data: alive } = await sb.from('players').select('*').eq('room_code', roomCode).eq('is_alive', true);
+  const toEliminate = alive.filter(p => p.current_answer === null || p.current_answer != q.correct.toString());
+  if (toEliminate.length > 0) {
+    const ids = toEliminate.map(p => p.id);
+    await sb.from('players').update({ is_alive: false }).in('id', ids);
+  }
+
+  // refresh alive
+  const { data: allNow } = await sb.from('players').select('*').eq('room_code', roomCode);
+  allPlayers = allNow; alivePlayers = allNow.filter(p => p.is_alive);
+
+  const eliminatedNow = alive.length - alivePlayers.length;
+  await sb.from('rooms').update({ status: 'revealing' }).eq('code', roomCode);
+  await publishEvent('reveal_answer', {
+    correctIndex: q.correct,
+    alivePlayers: alivePlayers.length,
+    eliminatedThisRound: eliminatedNow
+  });
+
+  // show correct answer
+  const answers = document.querySelectorAll('.q-ans-item');
+  answers.forEach((el, i) => { if (i === q.correct) el.classList.add('correct-ans'); });
+
+  document.getElementById('statAlive').textContent = alivePlayers.length;
+  document.getElementById('statAnswered').textContent = `${alive.filter(p => p.current_answer !== null).length}/${alive.length}`;
+  document.getElementById('answerProgressFill').style.width = '100%';
+
+  // إحصائيات الخسارة
+  document.getElementById('elimStatsBox').style.display = 'block';
+  document.getElementById('elimStatsText').innerHTML = `
+    <span style="color:var(--red);font-weight:900">❌ خرج ${eliminatedNow} لاعب</span>
+    &nbsp;·&nbsp;
+    <span style="color:var(--green);font-weight:900">✅ تبقى ${alivePlayers.length} لاعب</span>
+    ${alivePlayers.length > 0 ? `&nbsp;·&nbsp;<span style="color:var(--gold)">${Math.round(alivePlayers.length/allPlayers.length*100)}% من الأصل</span>` : ''}
+  `;
+  updateAnswerBars(allNow);
+
+  renderGameControls('revealed');
+
+  // check win condition
+  if (alivePlayers.length === 1) {
+    setTimeout(() => declareWinner(), 1500);
+  } else if (alivePlayers.length === 0) {
+    await publishEvent('game_over', { winner: null });
+    await sb.from('rooms').update({ status: 'finished' }).eq('code', roomCode);
+    showMsg('gameMsg', 'انتهت اللعبة! لا يوجد فائز.', 'error');
+    renderGameControls('done');
+  }
+}
+
+async function nextQuestion() {
+  if (currentQ + 1 >= gameQuestions.length) {
+    const top3 = alivePlayers.slice(0, 3).map(p => p.name);
+    await publishEvent('game_over', { winner: alivePlayers[0]?.name || null, top3 });
+    await sb.from('rooms').update({ status: 'finished' }).eq('code', roomCode);
+    showMsg('gameMsg', `🏆 انتهت الأسئلة! الفائز: ${alivePlayers.map(p=>p.name).join(', ')}`, 'success');
+    renderGameControls('done');
+  } else {
+    await showQuestion(currentQ + 1);
+  }
+}
+
+async function declareWinner() {
+  // جيب أول 3 لاعبين بترتيب الانضمام (الناجين)
+  const { data: allData } = await sb.from('players').select('*').eq('room_code', roomCode).order('joined_at');
+  const survivors = allData ? allData.filter(p => p.is_alive) : alivePlayers;
+  const eliminated = allData ? allData.filter(p => !p.is_alive) : [];
+  // top3 = الناجين + آخر من خرج
+  const top3 = [
+    ...survivors.map(p => p.name),
+    ...eliminated.slice(-2).reverse().map(p => p.name)
+  ].slice(0, 3);
+
+  const winner = survivors[0];
+  await publishEvent('game_over', { winner: winner?.name || null, top3 });
+  await sb.from('rooms').update({ status: 'finished' }).eq('code', roomCode);
+  showMsg('gameMsg', `🏆 الفائز: ${winner?.name || 'غير معروف'}!`, 'success');
+  renderGameControls('done');
+}
+
+function renderGameControls(state) {
+  const el = document.getElementById('gameControls');
+  if (state === 'running') {
+    el.innerHTML = `
+      <button class="ctrl-btn reveal" onclick="revealAnswer()">🔍 كشف الإجابة</button>
+    `;
+  } else if (state === 'revealed') {
+    const hasNext = currentQ + 1 < gameQuestions.length && alivePlayers.length > 1;
+    el.innerHTML = `
+      ${hasNext ? `<button class="ctrl-btn next" onclick="nextQuestion()">➡️ السؤال التالي</button>` : ''}
+      <button class="ctrl-btn stop" onclick="endGame()">🛑 إنهاء اللعبة</button>
+    `;
+  } else {
+    el.innerHTML = `<button class="ctrl-btn stop" onclick="location.href='index.html'">🏠 الرئيسية</button>`;
+  }
+}
+
+// ===== LIFELINES =====
+function updateLifelines() {
+  const area = document.getElementById('lifelineArea');
+  const count = alivePlayers.length;
+  if (count <= 10) {
+    // إخفاء كامل — لا يظهر شيء
+    area.innerHTML = `<div class="ll-locked">🔒 وسائل المساعدة مغلقة (${count} لاعب متبقي — تحتاج أكثر من 10)</div>`;
+  } else {
+    area.innerHTML = `
+      <div class="lifeline-btns">
+        <button class="ll-btn" onclick="useLifeline('fifty')">✂️ حذف إجابتين</button>
+        <button class="ll-btn" onclick="useLifeline('skip')">⏭️ تخطي السؤال</button>
+      </div>
+    `;
+  }
+}
+
+async function useLifeline(type) {
+  const q = gameQuestions[currentQ];
+  if (type === 'fifty') {
+    const wrong = [0,1,2,3].filter(i => i !== q.correct);
+    const toHide = wrong.sort(() => Math.random()-0.5).slice(0,2);
+    await publishEvent('lifeline_fifty', { hide: toHide });
+  } else if (type === 'skip') {
+    clearInterval(timerInterval);
+    await publishEvent('lifeline_skip', { questionIndex: currentQ });
+    await nextQuestion();
+  }
+}
+
+// ===== HELPERS =====
+async function publishEvent(type, payload) {
+  await sb.from('game_events').insert({ room_code: roomCode, event_type: type, payload });
+}
+
+async function endGame() {
+  clearInterval(timerInterval);
+  await publishEvent('game_over', { winner: null });
+  await sb.from('rooms').update({ status: 'finished' }).eq('code', roomCode);
+  showMsg('gameMsg', 'تم إنهاء اللعبة.', 'success');
+  renderGameControls('done');
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg ${type}`;
+}
+
+// ===== INIT =====
+window.onload = () => { initSB(); };
+</script>
+</body>
+</html>
