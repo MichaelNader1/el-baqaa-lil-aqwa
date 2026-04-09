@@ -568,7 +568,7 @@ async function renderLifelines() {
     .eq('room_code', roomCode).eq('is_alive', true);
 
   // إخفاء كامل لو اللاعبون 10 أو أقل
-  if (count <= 10) {
+  if (count <= 999) {
     row.innerHTML = '';
     return;
   }
